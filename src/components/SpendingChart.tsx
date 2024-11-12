@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Transaction } from '../types';
 
+
 interface SpendingChartProps {
   transactions: Transaction[];
 }

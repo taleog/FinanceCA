@@ -5,6 +5,7 @@ import SpendingChart from './SpendingChart';
 import BudgetOverview from './BudgetOverview';
 import CryptoPrices from './CryptoPrices';
 import { useTransactions } from '../context/TransactionContext';
+import ImportTransactions from './ImportTransactions';
 
 interface AccountType {
   id: string;
@@ -77,6 +78,8 @@ export default function Dashboard({ showAddTransaction, setShowAddTransaction, a
           Add Transaction
         </button>
       </header>
+
+      <ImportTransactions />
 
       {showAddTransaction && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -174,7 +177,12 @@ export default function Dashboard({ showAddTransaction, setShowAddTransaction, a
                 </p>
               </div>
             </div>
-            <TrendingUp className="w-5 h-5 text-green-500 dark:text-green-400" />
+            {totalBalance > 0 && (
+              <TrendingUp className="w-5 h-5 text-green-500 dark:text-green-400" />
+            )}
+            {totalBalance < 0 && (
+              <TrendingDown className="w-5 h-5 text-red-500 dark:text-red-400" />
+            )}
           </div>
         </div>
 
