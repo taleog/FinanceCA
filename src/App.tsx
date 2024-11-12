@@ -5,21 +5,22 @@ import Sidebar from './components/Sidebar';
 import TransactionList from './components/TransactionList';
 import Login from './components/Login';
 import Settings from './components/Settings';
+import Accounts from './components/Accounts';
+import Account from './types/Account';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [activeView, setActiveView] = useState('Overview');
   const [showAddTransaction, setShowAddTransaction] = useState(false);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  const [accounts, setAccounts] = useState<Account[]>([]);
 
-  // Render the login screen if the user is not logged in
   if (!isLoggedIn) {
     return <Login onLogin={() => setIsLoggedIn(true)} />;
   }
 
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-chatbg">
-      {/* Sidebar with fixed width */}
       {isSidebarVisible && (
         <div className="w-64">
           <Sidebar
@@ -31,7 +32,6 @@ function App() {
         </div>
       )}
       
-      {/* Main content area */}
       <div className={`flex-1 transition-all ${isSidebarVisible ? 'pl-0' : 'pl-16'}`}>
         {!isSidebarVisible && (
           <button
@@ -47,12 +47,15 @@ function App() {
             <Dashboard
               showAddTransaction={showAddTransaction}
               setShowAddTransaction={setShowAddTransaction}
+              accounts={accounts}
             />
           ) : activeView === 'Transactions' ? (
             <TransactionList
               showAddTransaction={showAddTransaction}
               setShowAddTransaction={setShowAddTransaction}
             />
+          ) : activeView === 'Accounts' ? (
+            <Accounts accounts={accounts} setAccounts={setAccounts} />
           ) : activeView === 'Settings' ? (
             <Settings setIsLoggedIn={setIsLoggedIn} />
           ) : (

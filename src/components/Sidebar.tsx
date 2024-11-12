@@ -45,9 +45,9 @@ export default function Sidebar({ activeView, onViewChange, setIsLoggedIn, toggl
         {menuItems.map((item) => (
           <button
             key={item.label}
-            onClick={() => onViewChange(item.view)}
+            onClick={() => onViewChange(item.label)}
             className={`w-full flex items-center gap-3 px-6 py-3 transition-colors ${
-              activeView === item.view
+              activeView === item.label
                 ? 'bg-chataccent/10 dark:bg-chataccent/10 text-chataccent dark:text-chataccent'
                 : 'text-slate-600 dark:text-chattext-muted hover:bg-slate-50 dark:hover:bg-chatbg hover:text-chataccent dark:hover:text-chataccent'
             }`}

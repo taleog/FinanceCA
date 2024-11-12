@@ -1,15 +1,25 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState, Dispatch, SetStateAction } from 'react';
+import { auth } from '../firebaseConfig';
 import { TrendingUp, TrendingDown, DollarSign, X } from 'lucide-react';
 import SpendingChart from './SpendingChart';
 import BudgetOverview from './BudgetOverview';
+import CryptoPrices from './CryptoPrices';
 import { useTransactions } from '../context/TransactionContext';
+
+interface AccountType {
+  id: string;
+  name: string;
+}
 
 interface DashboardProps {
   showAddTransaction: boolean;
-  setShowAddTransaction: (show: boolean) => void;
+  setShowAddTransaction: Dispatch<SetStateAction<boolean>>;
+  accounts: AccountType[];
 }
-export default function Dashboard({ showAddTransaction, setShowAddTransaction }: DashboardProps) {
+
+export default function Dashboard({ showAddTransaction, setShowAddTransaction, accounts }: DashboardProps) {
   const { addTransaction, state } = useTransactions();
+  const [displayName, setDisplayName] = useState('');
   const [newTransaction, setNewTransaction] = useState({
     type: 'expense' as 'expense' | 'income',
     amount: '',
@@ -17,6 +27,14 @@ export default function Dashboard({ showAddTransaction, setShowAddTransaction }:
     description: '',
     date: new Date().toISOString().split('T')[0]
   });
+
+  useEffect(() => {
+    // Get the current user's display name from Firebase
+    const user = auth.currentUser;
+    if (user && user.displayName) {
+      setDisplayName(user.displayName);
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +67,7 @@ export default function Dashboard({ showAddTransaction, setShowAddTransaction }:
     <div className="space-y-6">
       <header className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Welcome back!</h1>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Welcome back, {displayName || 'User'}!</h1>
           <p className="text-slate-600 dark:text-chattext-muted">Here's your financial overview</p>
         </div>
         <button 
@@ -198,6 +216,7 @@ export default function Dashboard({ showAddTransaction, setShowAddTransaction }:
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <SpendingChart transactions={state.transactions} />
         <BudgetOverview transactions={state.transactions} />
+        <CryptoPrices />
       </div>
     </div>
   );
