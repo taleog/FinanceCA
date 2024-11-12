@@ -7,12 +7,14 @@ interface TransactionState {
 
 type TransactionAction = 
   | { type: 'ADD_TRANSACTION'; payload: Transaction }
-  | { type: 'DELETE_TRANSACTION'; payload: string };
+  | { type: 'DELETE_TRANSACTION'; payload: string }
+  | { type: 'EDIT_TRANSACTION'; payload: Transaction };
 
 interface TransactionContextType {
   state: TransactionState;
-  addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
+  addTransaction: (transaction: Transaction) => void;
   deleteTransaction: (id: string) => void;
+  editTransaction: (transaction: Transaction) => void;
 }
 
 const initialTransactions: Transaction[] = [
@@ -72,6 +74,13 @@ function transactionReducer(state: TransactionState, action: TransactionAction):
         ...state,
         transactions: state.transactions.filter(t => t.id !== action.payload)
       };
+    case 'EDIT_TRANSACTION':
+      return {
+        ...state,
+        transactions: state.transactions.map(t => 
+          t.id === action.payload.id ? action.payload : t
+        )
+      };
     default:
       return state;
   }
@@ -82,7 +91,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     transactions: initialTransactions
   });
 
-  const addTransaction = (transaction: Omit<Transaction, 'id'>) => {
+  const addTransaction = (transaction: Transaction) => {
     const newTransaction: Transaction = {
       ...transaction,
       id: crypto.randomUUID()
@@ -94,8 +103,12 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     dispatch({ type: 'DELETE_TRANSACTION', payload: id });
   };
 
+  const editTransaction = (updatedTransaction: Transaction) => {
+    dispatch({ type: 'EDIT_TRANSACTION', payload: updatedTransaction });
+  };
+
   return (
-    <TransactionContext.Provider value={{ state, addTransaction, deleteTransaction }}>
+    <TransactionContext.Provider value={{ state, addTransaction, deleteTransaction, editTransaction }}>
       {children}
     </TransactionContext.Provider>
   );

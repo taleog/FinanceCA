@@ -20,7 +20,7 @@ const categoryBudgets: CategoryBudget[] = [
 ];
 
 export default function BudgetOverview({ transactions }: BudgetOverviewProps) {
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
 
   const categorySpending = useMemo(() => {
     const spending = new Map<string, number>();
@@ -39,31 +39,41 @@ export default function BudgetOverview({ transactions }: BudgetOverviewProps) {
     }));
   }, [transactions]);
 
+  const categories = useMemo(() => categoryBudgets.map(cat => cat.name), []);
+
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+    <div className="bg-white dark:bg-chatbg-dark p-6 rounded-xl shadow-sm border border-slate-200 dark:border-black">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-lg font-semibold text-slate-800">Budget Overview</h2>
-        <button className="text-indigo-600 hover:text-indigo-700 text-sm font-medium">
-          View All
-        </button>
+        <h2 className="text-lg font-semibold text-slate-800 dark:text-chattext">Budget Overview</h2>
+        <select 
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          className="px-3 py-1.5 bg-slate-50 dark:bg-chatbg-dark border border-slate-200 dark:border-chatbg rounded-lg text-sm dark:text-chattext-muted"
+        >
+          <option value="">All Categories</option>
+          {categories.map(cat => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
       </div>
+      
       <div className="space-y-4">
         {categorySpending.map((category) => (
           <div 
             key={category.name}
             onClick={() => setSelectedCategory(category.name)}
-            className="cursor-pointer transition-all duration-200 hover:bg-slate-50 p-2 rounded-lg"
+            className="cursor-pointer transition-all duration-200 hover:bg-slate-50 dark:hover:bg-chatbg p-2 rounded-lg"
           >
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-slate-700">{category.name}</span>
-              <span className="text-sm text-slate-600">
+              <span className="text-sm font-medium text-slate-700 dark:text-chattext">{category.name}</span>
+              <span className="text-sm text-slate-600 dark:text-chattext-muted">
                 ${category.spent.toLocaleString('en-CA', { minimumFractionDigits: 2 })} / 
                 ${category.budget.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
               </span>
             </div>
-            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-2 bg-slate-100 dark:bg-chatbg rounded-full overflow-hidden">
               <div
-                className={`h-full ${category.color} transition-all duration-300`}
+                className={`h-full ${category.color} dark:opacity-90 transition-all duration-300`}
                 style={{ 
                   width: `${category.percentage}%`,
                   opacity: selectedCategory === category.name ? '1' : '0.8'
