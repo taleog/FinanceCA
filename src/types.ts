@@ -1,10 +1,14 @@
+// src/types.ts
+
 export interface Transaction {
-  id: string;
-  date: string;
-  description: string;
-  category: string;
+  id?: string;
+  userId: string;
+  type: 'expense' | 'income' | 'transfer';
   amount: number;
-  type: 'income' | 'expense';
+  category: string;
+  description: string;
+  date: Date;
+  paymentMethod: string;
 }
 
 export type SortField = 'date' | 'description' | 'category' | 'amount';

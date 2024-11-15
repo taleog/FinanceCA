@@ -1,123 +1,106 @@
-import React, { createContext, useContext, useReducer } from 'react';
+// src/context/TransactionContext.tsx
+import React, { createContext, useReducer, useContext, useEffect } from 'react';
 import { Transaction } from '../types';
+import { auth } from '../firebaseConfig';
+import {
+  addTransactionToFirestore,
+  getTransactionsFromFirestore,
+  updateTransactionInFirestore,
+  deleteTransactionFromFirestore,
+} from '../services/transactionService';
 
 interface TransactionState {
   transactions: Transaction[];
 }
 
-type TransactionAction = 
+type TransactionAction =
+  | { type: 'SET_TRANSACTIONS'; payload: Transaction[] }
   | { type: 'ADD_TRANSACTION'; payload: Transaction }
-  | { type: 'DELETE_TRANSACTION'; payload: string }
-  | { type: 'EDIT_TRANSACTION'; payload: Transaction };
+  | { type: 'UPDATE_TRANSACTION'; payload: Transaction }
+  | { type: 'DELETE_TRANSACTION'; payload: string };
 
-interface TransactionContextType {
+const initialState: TransactionState = {
+  transactions: [],
+};
+
+const TransactionContext = createContext<{
   state: TransactionState;
-  addTransaction: (transaction: Transaction) => void;
-  deleteTransaction: (id: string) => void;
-  editTransaction: (transaction: Transaction) => void;
-}
-
-const initialTransactions: Transaction[] = [
-  {
-    id: '1',
-    date: '2024-03-15',
-    description: 'Monthly Rent',
-    category: 'Housing',
-    amount: -2000,
-    type: 'expense'
-  },
-  {
-    id: '2',
-    date: '2024-03-14',
-    description: 'Salary Deposit',
-    category: 'Income',
-    amount: 4500,
-    type: 'income'
-  },
-  {
-    id: '3',
-    date: '2024-03-13',
-    description: 'Grocery Shopping',
-    category: 'Food',
-    amount: -156.78,
-    type: 'expense'
-  },
-  {
-    id: '4',
-    date: '2024-03-12',
-    description: 'Uber Ride',
-    category: 'Transportation',
-    amount: -25.50,
-    type: 'expense'
-  },
-  {
-    id: '5',
-    date: '2024-03-11',
-    description: 'Freelance Payment',
-    category: 'Income',
-    amount: 850,
-    type: 'income'
-  }
-];
-
-const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
+  addTransaction: (transaction: Omit<Transaction, 'id' | 'userId'>) => Promise<void>;
+  updateTransaction: (transaction: Transaction) => Promise<void>;
+  deleteTransaction: (id: string) => Promise<void>;
+} | null>(null);
 
 function transactionReducer(state: TransactionState, action: TransactionAction): TransactionState {
   switch (action.type) {
+    case 'SET_TRANSACTIONS':
+      return { ...state, transactions: action.payload };
     case 'ADD_TRANSACTION':
+      return { ...state, transactions: [action.payload, ...state.transactions] };
+    case 'UPDATE_TRANSACTION':
       return {
         ...state,
-        transactions: [action.payload, ...state.transactions]
+        transactions: state.transactions.map((t) =>
+          t.id === action.payload.id ? action.payload : t
+        ),
       };
     case 'DELETE_TRANSACTION':
       return {
         ...state,
-        transactions: state.transactions.filter(t => t.id !== action.payload)
-      };
-    case 'EDIT_TRANSACTION':
-      return {
-        ...state,
-        transactions: state.transactions.map(t => 
-          t.id === action.payload.id ? action.payload : t
-        )
+        transactions: state.transactions.filter((t) => t.id !== action.payload),
       };
     default:
       return state;
   }
 }
 
-export function TransactionProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(transactionReducer, {
-    transactions: initialTransactions
-  });
+export const TransactionProvider = ({ children }: { children: React.ReactNode }) => {
+  const [state, dispatch] = useReducer(transactionReducer, initialState);
 
-  const addTransaction = (transaction: Transaction) => {
-    const newTransaction: Transaction = {
-      ...transaction,
-      id: crypto.randomUUID()
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      const user = auth.currentUser;
+      if (user) {
+        const transactions = await getTransactionsFromFirestore(user.uid);
+        dispatch({ type: 'SET_TRANSACTIONS', payload: transactions });
+      }
     };
-    dispatch({ type: 'ADD_TRANSACTION', payload: newTransaction });
+    fetchTransactions();
+  }, []);
+
+  const addTransaction = async (transaction: Omit<Transaction, 'id' | 'userId'>) => {
+    const user = auth.currentUser;
+    if (user) {
+      const newTransaction = await addTransactionToFirestore({
+        ...transaction,
+        userId: user.uid,
+      });
+      dispatch({ type: 'ADD_TRANSACTION', payload: newTransaction });
+    }
   };
 
-  const deleteTransaction = (id: string) => {
+  const updateTransaction = async (transaction: Transaction) => {
+    await updateTransactionInFirestore(transaction);
+    dispatch({ type: 'UPDATE_TRANSACTION', payload: transaction });
+  };
+
+  const deleteTransaction = async (id: string) => {
+    await deleteTransactionFromFirestore(id);
     dispatch({ type: 'DELETE_TRANSACTION', payload: id });
   };
 
-  const editTransaction = (updatedTransaction: Transaction) => {
-    dispatch({ type: 'EDIT_TRANSACTION', payload: updatedTransaction });
-  };
-
   return (
-    <TransactionContext.Provider value={{ state, addTransaction, deleteTransaction, editTransaction }}>
+    <TransactionContext.Provider
+      value={{ state, addTransaction, updateTransaction, deleteTransaction }}
+    >
       {children}
     </TransactionContext.Provider>
   );
-}
+};
 
-export function useTransactions() {
+export const useTransactions = () => {
   const context = useContext(TransactionContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useTransactions must be used within a TransactionProvider');
   }
   return context;
-}
+};

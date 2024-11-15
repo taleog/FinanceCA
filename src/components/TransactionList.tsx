@@ -14,7 +14,7 @@ export default function TransactionList({ showAddTransaction, setShowAddTransact
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'income' | 'expense' | 'transfer'>('all');
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {

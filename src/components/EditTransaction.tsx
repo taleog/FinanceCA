@@ -9,12 +9,12 @@ interface EditTransactionProps {
 }
 
 export default function EditTransaction({ transaction, onClose }: EditTransactionProps) {
-  const { editTransaction } = useTransactions();
-  const [editedTransaction, setEditedTransaction] = useState(transaction);
+  const { updateTransaction } = useTransactions();
+  const [editedTransaction, setEditedTransaction] = useState<Transaction>(transaction);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    editTransaction(editedTransaction);
+    await updateTransaction(editedTransaction);
     onClose();
   };
 
@@ -49,10 +49,10 @@ export default function EditTransaction({ transaction, onClose }: EditTransactio
             <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
             <input
               type="date"
-              value={editedTransaction.date}
+              value={editedTransaction.date.toISOString().split('T')[0]}
               onChange={(e) => setEditedTransaction({
                 ...editedTransaction,
-                date: e.target.value
+                date: new Date(e.target.value)
               })}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg"
             />

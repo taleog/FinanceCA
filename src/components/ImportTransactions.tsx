@@ -1,48 +1,84 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTransactions } from '../context/TransactionContext';
+import Papa from 'papaparse';
 
-const ImportTransactions: React.FC = () => {
-    const { addTransaction } = useTransactions();
+export default function ImportTransactions() {
+  const [file, setFile] = useState<File | null>(null);
+  const { addTransaction } = useTransactions();
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const text = e.target?.result as string;
-                parseCSV(text);
-            };
-            reader.readAsText(file);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  const handleImport = () => {
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const csvData = e.target?.result;
+        if (typeof csvData === 'string') {
+          Papa.parse(csvData, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+              results.data.forEach((row: any) => {
+                const amount = parseFloat(row['Amount']);
+                const transaction = {
+                  id: '',
+                  date: row['Date'],
+                  description: `${row['Payee']} - ${row['Notes']}`,
+                  amount: amount,
+                  category: row['Category'],
+                  type: amount >= 0 ? ('income' as const) : ('expense' as const),
+                };
+                addTransaction(transaction);
+              });
+            },
+          });
         }
-    };
+      };
+      reader.readAsText(file);
+    }
+  };
 
-    const parseCSV = (text: string) => {
-        const rows = text.split('\n');
-        rows.forEach((row) => {
-            const [date, description, amount, category, type] = row.split(',');
-            if (date && description && amount && category && type) {
-                addTransaction({
-                    id: crypto.randomUUID(),
-                    date,
-                    description,
-                    amount: type === 'expense' ? -Math.abs(parseFloat(amount)) : Math.abs(parseFloat(amount)),
-                    category,
-                    type: type.trim() as 'expense' | 'income',
-                });
-            }
-        });
-    };
-
-    return (
-        <div className="mb-4">
-            <input
-                type="file"
-                accept=".csv"
-                onChange={handleFileChange}
-                className="p-2 border bg-slate-200 border-black rounded-lg"
-            />
+  return (
+    <div className="p-6 bg-white dark:bg-chatbg-dark rounded-lg shadow-lg">
+      <h2 className="text-2xl font-semibold text-gray-800 dark:text-chattext mb-4">
+        Import Transactions
+      </h2>
+      <div className="mb-4">
+        <label className="block mb-2 text-gray-700 dark:text-chattext">
+          Choose a CSV file to import:
+        </label>
+        <div className="flex items-center">
+          <input
+            type="file"
+            accept=".csv"
+            onChange={handleFileChange}
+            className="hidden"
+            id="file-input"
+          />
+          <label
+            htmlFor="file-input"
+            className="px-4 py-2 bg-chataccent text-white rounded-md cursor-pointer hover:bg-chataccent-hover dark:bg-chataccent dark:hover:bg-chataccent-hover"
+          >
+            Choose File
+          </label>
+          {file && (
+            <span className="ml-4 text-gray-700 dark:text-chattext">
+              {file.name}
+            </span>
+          )}
         </div>
-    );
-};
-
-export default ImportTransactions;
+      </div>
+      <button
+        onClick={handleImport}
+        className="px-4 py-2 bg-chataccent text-white rounded-md hover:bg-chataccent-hover dark:bg-chataccent dark:hover:bg-chataccent-hover"
+        disabled={!file}
+      >
+        Import
+      </button>
+    </div>
+  );
+}

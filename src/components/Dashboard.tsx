@@ -6,6 +6,14 @@ import BudgetOverview from './BudgetOverview';
 import CryptoPrices from './CryptoPrices';
 import { useTransactions } from '../context/TransactionContext';
 import ImportTransactions from './ImportTransactions';
+import { Transaction } from '../types';
+
+const timeRanges = {
+  WEEK: 'Past Week',
+  MONTH: 'Past Month',
+  YEAR: 'Past Year',
+  ALL: 'All Time',
+};
 
 interface AccountType {
   id: string;
@@ -18,16 +26,22 @@ interface DashboardProps {
   accounts: AccountType[];
 }
 
-export default function Dashboard({ showAddTransaction, setShowAddTransaction, accounts }: DashboardProps) {
+export default function Dashboard({
+  showAddTransaction,
+  setShowAddTransaction,
+  accounts,
+}: DashboardProps) {
   const { addTransaction, state } = useTransactions();
   const [displayName, setDisplayName] = useState('');
-  const [newTransaction, setNewTransaction] = useState({
-    type: 'expense' as 'expense' | 'income',
-    amount: '',
+  const [newTransaction, setNewTransaction] = useState<Omit<Transaction, 'id' | 'userId'>>({
+    type: 'expense',
+    amount: 0,
     category: '',
     description: '',
-    date: new Date().toISOString().split('T')[0]
+    date: new Date(),
+    paymentMethod: '',
   });
+  const [timeRange, setTimeRange] = useState(timeRanges.MONTH);
 
   useEffect(() => {
     // Get the current user's display name from Firebase
@@ -37,24 +51,83 @@ export default function Dashboard({ showAddTransaction, setShowAddTransaction, a
     }
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    addTransaction({
+
+    const user = auth.currentUser;
+    if (!user) {
+      console.error('User not logged in');
+      return;
+    }
+
+    const transaction: Transaction = {
       ...newTransaction,
-      id: crypto.randomUUID(),
-      amount: newTransaction.type === 'expense' 
-        ? -Math.abs(parseFloat(newTransaction.amount))
-        : Math.abs(parseFloat(newTransaction.amount))
-    });
-    setShowAddTransaction(false);
-    setNewTransaction({
-      type: 'expense',
-      amount: '',
-      category: '',
-      description: '',
-      date: new Date().toISOString().split('T')[0]
-    });
+      userId: user.uid,
+    };
+
+    try {
+      await addTransaction(transaction);
+      setNewTransaction({
+        type: 'expense',
+        amount: 0,
+        category: '',
+        description: '',
+        date: new Date(),
+        paymentMethod: '',
+      });
+      setShowAddTransaction(false);
+    } catch (error) {
+      console.error('Error adding transaction:', error);
+    }
   };
+
+  const filterTransactions = (transactions: Transaction[], range: string) => {
+    const now = new Date();
+    let filteredTransactions = transactions;
+
+    switch (range) {
+      case timeRanges.WEEK:
+        filteredTransactions = transactions.filter(transaction => {
+          const transactionDate = new Date(transaction.date);
+          return (now.getTime() - transactionDate.getTime()) / (1000 * 60 * 60 * 24) <= 7;
+        });
+        break;
+      case timeRanges.MONTH:
+        filteredTransactions = transactions.filter(transaction => {
+          const transactionDate = new Date(transaction.date);
+          return (now.getTime() - transactionDate.getTime()) / (1000 * 60 * 60 * 24) <= 30;
+        });
+        break;
+      case timeRanges.YEAR:
+        filteredTransactions = transactions.filter(transaction => {
+          const transactionDate = new Date(transaction.date);
+          return (now.getTime() - transactionDate.getTime()) / (1000 * 60 * 60 * 24) <= 365;
+        });
+        break;
+      case timeRanges.ALL:
+      default:
+        break;
+    }
+
+    return filteredTransactions;
+  };
+
+  const filteredTransactions = filterTransactions(state.transactions, timeRange);
+
+  const calculateIncome = (transactions: Transaction[]) => {
+    return transactions
+      .filter(transaction => transaction.type === 'income')
+      .reduce((acc, transaction) => acc + transaction.amount, 0);
+  };
+  
+  const calculateExpenses = (transactions: Transaction[]) => {
+    return transactions
+      .filter(transaction => transaction.type === 'expense')
+      .reduce((acc, transaction) => acc + transaction.amount, 0);
+  };
+
+  const income = calculateIncome(filteredTransactions);
+  const expenses = calculateExpenses(filteredTransactions);
 
   const totalBalance = state.transactions.reduce((sum, t) => sum + t.amount, 0);
   const monthlyIncome = state.transactions
@@ -63,6 +136,11 @@ export default function Dashboard({ showAddTransaction, setShowAddTransaction, a
   const monthlyExpenses = Math.abs(state.transactions
     .filter(t => t.type === 'expense')
     .reduce((sum, t) => sum + t.amount, 0));
+
+  // Ensure your component handles the case when transactions are not yet loaded
+  if (!state.transactions) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -109,8 +187,8 @@ export default function Dashboard({ showAddTransaction, setShowAddTransaction, a
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date</label>
                 <input
                   type="date"
-                  value={newTransaction.date}
-                  onChange={(e) => setNewTransaction({...newTransaction, date: e.target.value})}
+                  value={newTransaction.date.toISOString().split('T')[0]}
+                  onChange={(e) => setNewTransaction({...newTransaction, date: new Date(e.target.value)})}
                   className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 rounded-lg"
                 />
               </div>
@@ -119,7 +197,7 @@ export default function Dashboard({ showAddTransaction, setShowAddTransaction, a
                 <input
                   type="number"
                   value={newTransaction.amount}
-                  onChange={(e) => setNewTransaction({...newTransaction, amount: e.target.value})}
+                  onChange={(e) => setNewTransaction({...newTransaction, amount: parseFloat(e.target.value)})}
                   className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 rounded-lg"
                   placeholder="0.00"
                   step="0.01"
@@ -163,6 +241,24 @@ export default function Dashboard({ showAddTransaction, setShowAddTransaction, a
         </div>
       )}
 
+      <div className="mb-4">
+        <div className="flex gap-2">
+          {Object.values(timeRanges).map(range => (
+            <button
+              key={range}
+              onClick={() => setTimeRange(range)}
+              className={`px-4 py-2 rounded-md ${
+                timeRange === range
+                  ? 'bg-chataccent text-white'
+                  : 'bg-gray-200 dark:bg-chatbg-dark text-gray-800 dark:text-chattext'
+              }`}
+            >
+              {range}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-chatbg-dark p-6 rounded-xl shadow-sm border border-slate-200 dark:border-black">
           <div className="flex justify-between items-center">
@@ -195,7 +291,7 @@ export default function Dashboard({ showAddTransaction, setShowAddTransaction, a
               <div>
                 <p className="text-sm text-slate-600 dark:text-chattext-muted">Monthly Income</p>
                 <p className="text-xl font-bold text-slate-800 dark:text-chattext">
-                  ${monthlyIncome.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                  ${income.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
                 </p>
               </div>
             </div>
@@ -212,7 +308,7 @@ export default function Dashboard({ showAddTransaction, setShowAddTransaction, a
               <div>
                 <p className="text-sm text-slate-600 dark:text-chattext-muted">Monthly Expenses</p>
                 <p className="text-xl font-bold text-slate-800 dark:text-chattext">
-                  ${monthlyExpenses.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                  ${expenses.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
                 </p>
               </div>
             </div>
@@ -222,8 +318,8 @@ export default function Dashboard({ showAddTransaction, setShowAddTransaction, a
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <SpendingChart transactions={state.transactions} />
-        <BudgetOverview transactions={state.transactions} />
+        <SpendingChart transactions={filteredTransactions} />
+        <BudgetOverview transactions={filteredTransactions} />
         <CryptoPrices />
       </div>
     </div>

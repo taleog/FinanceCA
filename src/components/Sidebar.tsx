@@ -1,5 +1,14 @@
 import React from 'react';
-import { Wallet, PieChart, TrendingUp, DollarSign, CreditCard, Settings, LogOut, Menu } from 'lucide-react';
+import {
+  Wallet,
+  PieChart,
+  TrendingUp,
+  DollarSign,
+  CreditCard,
+  Settings,
+  LogOut,
+  Menu,
+} from 'lucide-react';
 import DarkModeToggle from './DarkModeToggle';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebaseConfig';
@@ -15,11 +24,17 @@ const menuItems = [
   { icon: DollarSign, label: 'Overview', view: 'Overview' },
   { icon: Wallet, label: 'Accounts', view: 'Accounts' },
   { icon: PieChart, label: 'Investments', view: 'Investments' },
+  { icon: TrendingUp, label: 'Crypto', view: 'Crypto' },
   { icon: CreditCard, label: 'Transactions', view: 'Transactions' },
   { icon: Settings, label: 'Settings', view: 'Settings' },
 ];
 
-export default function Sidebar({ activeView, onViewChange, setIsLoggedIn, toggleSidebar }: SidebarProps) {
+export default function Sidebar({
+  activeView,
+  onViewChange,
+  setIsLoggedIn,
+  toggleSidebar,
+}: SidebarProps) {
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -34,9 +49,14 @@ export default function Sidebar({ activeView, onViewChange, setIsLoggedIn, toggl
       <div className="p-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Wallet className="h-8 w-8 text-chataccent" />
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-chattext">FinanceCA</h1>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-chattext">
+            FinanceCA
+          </h1>
         </div>
-        <button onClick={toggleSidebar} className="text-slate-600 dark:text-chattext-muted">
+        <button
+          onClick={toggleSidebar}
+          className="text-slate-600 dark:text-chattext-muted"
+        >
           <Menu className="w-6 h-6" />
         </button>
       </div>
@@ -58,14 +78,15 @@ export default function Sidebar({ activeView, onViewChange, setIsLoggedIn, toggl
         ))}
       </nav>
 
-      <div className="p-6 border-t border-slate-200 dark:border-chatbg">
+      <div className="p-6 border-t border-slate-200 dark:border-chatbg flex items-center justify-between">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-500"
+          className="flex items-center gap-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-500"
         >
           <LogOut className="w-5 h-5" />
           <span>Logout</span>
         </button>
+        <DarkModeToggle />
       </div>
     </aside>
   );
