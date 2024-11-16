@@ -5,7 +5,6 @@ import BudgetOverview from './BudgetOverview';
 import { useTransactions } from '../context/TransactionContext';
 import { auth } from '../firebaseConfig';
 import CryptoPrices from './CryptoPrices';
-import ImportTransactions from './ImportTransactions';
 import Account from '../types/Account';
 import AddTransaction from './AddTransaction';
 import { getUserByUID } from '../services/userService';
@@ -126,8 +125,6 @@ export default function Dashboard({
           Add Transaction
         </button>
       </header>
-
-      <ImportTransactions />
 
       <div className="mb-4">
         <div className="flex gap-2">

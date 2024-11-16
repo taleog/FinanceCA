@@ -22,7 +22,7 @@
   }
   
   .btn-primary {
-    @apply bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-chataccent dark:hover:bg-chataccent/90;
+    @apply bg-chataccent text-white hover:bg-chataccent-hover dark:bg-chataccent dark:hover:bg-chataccent-hover;
   }
 }
 
