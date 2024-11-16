@@ -18,12 +18,14 @@ export default function AddTransaction({ onClose }: AddTransactionProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const [year, month, day] = date.split('-').map(Number);
+      const transactionDate = new Date(year, month - 1, day, 12, 0, 0); // Set time to noon to avoid timezone issues
       await addTransaction({
         type,
         amount: parseFloat(amount),
         category,
         description,
-        date: new Date(date),
+        date: transactionDate,
         paymentMethod,
       });
       onClose();

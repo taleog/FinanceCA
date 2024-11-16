@@ -7,11 +7,18 @@ interface SpendingChartProps {
 
 function SpendingChart({ transactions }: SpendingChartProps) {
   const [timeRange, setTimeRange] = useState('7');
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(() => {
+    const date = new Date();
+    return date.toISOString().split('T')[0];
+  });
 
   const spendingData = useMemo(() => {
     const days = parseInt(timeRange);
-    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999); // Ensure the end date includes the entire day
+    const start = new Date(end);
+    start.setDate(end.getDate() - days + 2);
+    start.setHours(0, 0, 0, 0); // Ensure the start date includes the entire day
     const dailyTotals = Array(days).fill(0);
     const labels = Array(days).fill('').map((_, i) => {
       const date = new Date(start);
@@ -28,7 +35,7 @@ function SpendingChart({ transactions }: SpendingChartProps) {
       }
     });
 
-    const maxAmount = Math.max(...dailyTotals, 0.01);
+    const maxAmount = Math.max(...dailyTotals, 0.001);
     const percentages = dailyTotals.map(amount => (amount / maxAmount) * 100);
 
     return {
@@ -37,7 +44,7 @@ function SpendingChart({ transactions }: SpendingChartProps) {
       percentages,
       maxAmount,
     };
-  }, [transactions, timeRange, startDate]);
+  }, [transactions, timeRange, endDate]);
 
   return (
     <div className="bg-white dark:bg-chatbg-dark p-6 rounded-xl shadow-sm border border-slate-200 dark:border-black">
@@ -60,8 +67,8 @@ function SpendingChart({ transactions }: SpendingChartProps) {
           </select>
           <input 
             type="date" 
-            value={startDate} 
-            onChange={(e) => setStartDate(e.target.value)} 
+            value={endDate} 
+            onChange={(e) => setEndDate(e.target.value)} 
             className="px-3 py-1.5 bg-slate-50 dark:bg-chatbg-dark border border-slate-200 dark:border-chatbg rounded-lg text-sm dark:text-chattext-muted"
           />
         </div>
