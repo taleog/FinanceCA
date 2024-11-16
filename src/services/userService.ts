@@ -25,6 +25,7 @@ export const getUserByUID = async (uid: string) => {
     const q = query(usersCollection, where('uid', '==', uid));
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
+      console.log('User found:', querySnapshot.docs[0].data());
       return querySnapshot.docs[0].data();
     } else {
       console.log('No user found');

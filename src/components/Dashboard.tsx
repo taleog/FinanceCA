@@ -1,12 +1,20 @@
-import React, { useEffect, useState, Dispatch, SetStateAction } from 'react';
-import { auth } from '../firebaseConfig';
-import { TrendingUp, TrendingDown, DollarSign, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 import SpendingChart from './SpendingChart';
 import BudgetOverview from './BudgetOverview';
-import CryptoPrices from './CryptoPrices';
 import { useTransactions } from '../context/TransactionContext';
+import { auth } from '../firebaseConfig';
+import CryptoPrices from './CryptoPrices';
 import ImportTransactions from './ImportTransactions';
-import { Transaction } from '../types';
+import Account from '../types/Account';
+import AddTransaction from './AddTransaction';
+import { getUserByUID } from '../services/userService';
+
+interface DashboardProps {
+  showAddTransaction: boolean;
+  setShowAddTransaction: (show: boolean) => void;
+  accounts: Account[];
+}
 
 const timeRanges = {
   WEEK: 'Past Week',
@@ -15,139 +23,101 @@ const timeRanges = {
   ALL: 'All Time',
 };
 
-interface AccountType {
-  id: string;
-  name: string;
-}
-
-interface DashboardProps {
-  showAddTransaction: boolean;
-  setShowAddTransaction: Dispatch<SetStateAction<boolean>>;
-  accounts: AccountType[];
-}
-
 export default function Dashboard({
   showAddTransaction,
   setShowAddTransaction,
   accounts,
 }: DashboardProps) {
-  const { addTransaction, state } = useTransactions();
-  const [displayName, setDisplayName] = useState('');
-  const [newTransaction, setNewTransaction] = useState<Omit<Transaction, 'id' | 'userId'>>({
-    type: 'expense',
-    amount: 0,
-    category: '',
-    description: '',
-    date: new Date(),
-    paymentMethod: '',
-  });
+  const { state, refreshTransactions } = useTransactions();
   const [timeRange, setTimeRange] = useState(timeRanges.MONTH);
+  const [displayName, setDisplayName] = useState('');
 
   useEffect(() => {
-    // Get the current user's display name from Firebase
     const user = auth.currentUser;
-    if (user && user.displayName) {
-      setDisplayName(user.displayName);
+    if (user) {
+      if (user.displayName) {
+        setDisplayName(user.displayName);
+      } else {
+        getUserByUID(user.uid).then((userData) => {
+          if (userData && userData.displayName) {
+            console.log('User display name from database:', userData.displayName);
+            setDisplayName(userData.displayName);
+          } else {
+            console.log('No display name found, setting to "User"');
+            setDisplayName('User');
+          }
+        });
+      }
+      refreshTransactions();
     }
-  }, []);
+  }, [refreshTransactions]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const user = auth.currentUser;
-    if (!user) {
-      console.error('User not logged in');
-      return;
-    }
-
-    const transaction: Transaction = {
-      ...newTransaction,
-      userId: user.uid,
-    };
-
-    try {
-      await addTransaction(transaction);
-      setNewTransaction({
-        type: 'expense',
-        amount: 0,
-        category: '',
-        description: '',
-        date: new Date(),
-        paymentMethod: '',
-      });
-      setShowAddTransaction(false);
-    } catch (error) {
-      console.error('Error adding transaction:', error);
-    }
-  };
-
-  const filterTransactions = (transactions: Transaction[], range: string) => {
+  const filterTransactions = (range: string) => {
+    if (!state.transactions) return [];
+    
     const now = new Date();
-    let filteredTransactions = transactions;
+    let filtered = [...state.transactions];
 
     switch (range) {
       case timeRanges.WEEK:
-        filteredTransactions = transactions.filter(transaction => {
-          const transactionDate = new Date(transaction.date);
-          return (now.getTime() - transactionDate.getTime()) / (1000 * 60 * 60 * 24) <= 7;
+        filtered = filtered.filter(t => {
+          const transactionDate = new Date(t.date);
+          return (now.getTime() - transactionDate.getTime()) <= 7 * 24 * 60 * 60 * 1000;
         });
         break;
       case timeRanges.MONTH:
-        filteredTransactions = transactions.filter(transaction => {
-          const transactionDate = new Date(transaction.date);
-          return (now.getTime() - transactionDate.getTime()) / (1000 * 60 * 60 * 24) <= 30;
+        filtered = filtered.filter(t => {
+          const transactionDate = new Date(t.date);
+          return (now.getTime() - transactionDate.getTime()) <= 30 * 24 * 60 * 60 * 1000;
         });
         break;
       case timeRanges.YEAR:
-        filteredTransactions = transactions.filter(transaction => {
-          const transactionDate = new Date(transaction.date);
-          return (now.getTime() - transactionDate.getTime()) / (1000 * 60 * 60 * 24) <= 365;
+        filtered = filtered.filter(t => {
+          const transactionDate = new Date(t.date);
+          return (now.getTime() - transactionDate.getTime()) <= 365 * 24 * 60 * 60 * 1000;
         });
         break;
-      case timeRanges.ALL:
       default:
         break;
     }
 
-    return filteredTransactions;
+    return filtered;
   };
 
-  const filteredTransactions = filterTransactions(state.transactions, timeRange);
+  const filteredTransactions = filterTransactions(timeRange);
 
-  const calculateIncome = (transactions: Transaction[]) => {
-    return transactions
-      .filter(transaction => transaction.type === 'income')
-      .reduce((acc, transaction) => acc + transaction.amount, 0);
-  };
-  
-  const calculateExpenses = (transactions: Transaction[]) => {
-    return transactions
-      .filter(transaction => transaction.type === 'expense')
-      .reduce((acc, transaction) => acc + transaction.amount, 0);
+  const calculateTotal = (type: 'income' | 'expense') => {
+    return filteredTransactions
+      .filter(t => t.type === type)
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
   };
 
-  const income = calculateIncome(filteredTransactions);
-  const expenses = calculateExpenses(filteredTransactions);
+  const income = calculateTotal('income');
+  const expenses = calculateTotal('expense');
+  const balance = income - expenses;
 
-  const totalBalance = state.transactions.reduce((sum, t) => sum + t.amount, 0);
-  const monthlyIncome = state.transactions
-    .filter(t => t.type === 'income')
-    .reduce((sum, t) => sum + t.amount, 0);
-  const monthlyExpenses = Math.abs(state.transactions
-    .filter(t => t.type === 'expense')
-    .reduce((sum, t) => sum + t.amount, 0));
+  if (state.loading) {
+    return <div className="flex items-center justify-center h-64">Loading...</div>;
+  }
 
-  // Ensure your component handles the case when transactions are not yet loaded
-  if (!state.transactions) {
-    return <div>Loading...</div>;
+  if (state.error) {
+    return <div className="text-red-500">{state.error}</div>;
   }
 
   return (
     <div className="space-y-6">
+      {showAddTransaction && (
+        <AddTransaction onClose={() => setShowAddTransaction(false)} />
+      )}
+      
       <header className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Welcome back, {displayName || 'User'}!</h1>
-          <p className="text-slate-600 dark:text-chattext-muted">Here's your financial overview</p>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">
+            Welcome back, {displayName}!
+          </h1>
+          <p className="text-slate-600 dark:text-chattext-muted">
+            Here's your financial overview
+          </p>
         </div>
         <button 
           onClick={() => setShowAddTransaction(true)}
@@ -158,88 +128,6 @@ export default function Dashboard({
       </header>
 
       <ImportTransactions />
-
-      {showAddTransaction && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-chatbg rounded-xl p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-slate-800 dark:text-white">Add Transaction</h2>
-              <button 
-                onClick={() => setShowAddTransaction(false)}
-                className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
-                <select
-                  value={newTransaction.type}
-                  onChange={(e) => setNewTransaction({...newTransaction, type: e.target.value as 'expense' | 'income'})}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 rounded-lg"
-                >
-                  <option value="expense">Expense</option>
-                  <option value="income">Income</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date</label>
-                <input
-                  type="date"
-                  value={newTransaction.date.toISOString().split('T')[0]}
-                  onChange={(e) => setNewTransaction({...newTransaction, date: new Date(e.target.value)})}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Amount</label>
-                <input
-                  type="number"
-                  value={newTransaction.amount}
-                  onChange={(e) => setNewTransaction({...newTransaction, amount: parseFloat(e.target.value)})}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 rounded-lg"
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
-                <select
-                  value={newTransaction.category}
-                  onChange={(e) => setNewTransaction({...newTransaction, category: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 rounded-lg"
-                  required
-                >
-                  <option value="">Select category</option>
-                  <option value="Housing">Housing</option>
-                  <option value="Transportation">Transportation</option>
-                  <option value="Food">Food</option>
-                  <option value="Utilities">Utilities</option>
-                  <option value="Entertainment">Entertainment</option>
-                  <option value="Income">Income</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
-                <input
-                  type="text"
-                  value={newTransaction.description}
-                  onChange={(e) => setNewTransaction({...newTransaction, description: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 rounded-lg"
-                  placeholder="Enter description"
-                  required
-                />
-              </div>
-              <button type="submit" className="w-full btn btn-primary">
-                Add Transaction
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
 
       <div className="mb-4">
         <div className="flex gap-2">
@@ -263,20 +151,19 @@ export default function Dashboard({
         <div className="bg-white dark:bg-chatbg-dark p-6 rounded-xl shadow-sm border border-slate-200 dark:border-black">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
-                <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
+              <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                <TrendingUp className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <p className="text-sm text-slate-600 dark:text-chattext-muted">Total Balance</p>
+                <p className="text-sm text-slate-600 dark:text-chattext-muted">Balance</p>
                 <p className="text-xl font-bold text-slate-800 dark:text-chattext">
-                  ${totalBalance.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                  ${balance.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
                 </p>
               </div>
             </div>
-            {totalBalance > 0 && (
+            {balance >= 0 ? (
               <TrendingUp className="w-5 h-5 text-green-500 dark:text-green-400" />
-            )}
-            {totalBalance < 0 && (
+            ) : (
               <TrendingDown className="w-5 h-5 text-red-500 dark:text-red-400" />
             )}
           </div>
@@ -285,11 +172,11 @@ export default function Dashboard({
         <div className="bg-white dark:bg-chatbg-dark p-6 rounded-xl shadow-sm border border-slate-200 dark:border-black">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                <TrendingUp className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
+                <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <p className="text-sm text-slate-600 dark:text-chattext-muted">Monthly Income</p>
+                <p className="text-sm text-slate-600 dark:text-chattext-muted">Income</p>
                 <p className="text-xl font-bold text-slate-800 dark:text-chattext">
                   ${income.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
                 </p>
@@ -306,7 +193,7 @@ export default function Dashboard({
                 <TrendingDown className="w-6 h-6 text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <p className="text-sm text-slate-600 dark:text-chattext-muted">Monthly Expenses</p>
+                <p className="text-sm text-slate-600 dark:text-chattext-muted">Expenses</p>
                 <p className="text-xl font-bold text-slate-800 dark:text-chattext">
                   ${expenses.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
                 </p>

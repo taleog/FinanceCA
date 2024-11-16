@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Wallet, Menu } from 'lucide-react';
+import { AuthProvider } from './context/AuthContext';
 import Dashboard from './components/Dashboard';
 import Sidebar from './components/Sidebar';
 import TransactionList from './components/TransactionList';
@@ -10,6 +11,7 @@ import Account from './types/Account';
 import CryptoPage from './components/CryptoPage';
 import { TransactionProvider } from './context/TransactionContext';
 import InvestmentsPage from './components/InvestmentsPage';
+
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -23,59 +25,61 @@ function App() {
   }
 
   return (
-    <TransactionProvider>
-      <div className="flex h-screen bg-gray-100 dark:bg-chatbg">
-        {isSidebarVisible && (
-          <div className="w-64">
-            <Sidebar
-              activeView={activeView}
-              onViewChange={setActiveView}
-              setIsLoggedIn={setIsLoggedIn}
-              toggleSidebar={() => setIsSidebarVisible(!isSidebarVisible)}
-            />
-          </div>
-        )}
-        
-        <div className={`flex-1 transition-all ${isSidebarVisible ? 'pl-0' : 'pl-16'}`}>
-          {!isSidebarVisible && (
-            <button
-              onClick={() => setIsSidebarVisible(true)}
-              className="fixed top-4 left-4 bg-gray-200 dark:bg-gray-700 p-2 rounded-full shadow-lg hover:bg-gray-300 dark:hover:bg-gray-600"
-            >
-              <Menu className="w-6 h-6 text-gray-800 dark:text-gray-200" />
-            </button>
+    <AuthProvider>
+      <TransactionProvider>
+        <div className="flex h-screen bg-gray-100 dark:bg-chatbg">
+          {isSidebarVisible && (
+            <div className="w-64">
+              <Sidebar
+                activeView={activeView}
+                onViewChange={setActiveView}
+                setIsLoggedIn={setIsLoggedIn}
+                toggleSidebar={() => setIsSidebarVisible(!isSidebarVisible)}
+              />
+            </div>
           )}
           
-          <main className="main-content p-6">
-            {activeView === 'Overview' ? (
-              <Dashboard
-                showAddTransaction={showAddTransaction}
-                setShowAddTransaction={setShowAddTransaction}
-                accounts={accounts}
-              />
-            ) : activeView === 'Transactions' ? (
-              <TransactionList
-                showAddTransaction={showAddTransaction}
-                setShowAddTransaction={setShowAddTransaction}
-              />
-            ) : activeView === 'Accounts' ? (
-              <Accounts accounts={accounts} setAccounts={setAccounts} />
-            ) : activeView === 'Investments' ? (
-              <InvestmentsPage />
-            ) : activeView === 'Settings' ? (
-              <Settings setIsLoggedIn={setIsLoggedIn} />
-            ) : activeView === 'Crypto' ? (
-              <CryptoPage />
-            ) :
-
-             (
-            
-              <div className="coming-soon">Coming soon...</div>
+          <div className={`flex-1 transition-all ${isSidebarVisible ? 'pl-0' : 'pl-16'}`}>
+            {!isSidebarVisible && (
+              <button
+                onClick={() => setIsSidebarVisible(true)}
+                className="fixed top-4 left-4 bg-gray-200 dark:bg-gray-700 p-2 rounded-full shadow-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+              >
+                <Menu className="w-6 h-6 text-gray-800 dark:text-gray-200" />
+              </button>
             )}
-          </main>
+            
+            <main className="main-content p-6">
+              {activeView === 'Overview' ? (
+                <Dashboard
+                  showAddTransaction={showAddTransaction}
+                  setShowAddTransaction={setShowAddTransaction}
+                  accounts={accounts}
+                />
+              ) : activeView === 'Transactions' ? (
+                <TransactionList
+                  showAddTransaction={showAddTransaction}
+                  setShowAddTransaction={setShowAddTransaction}
+                />
+              ) : activeView === 'Accounts' ? (
+                <Accounts accounts={accounts} setAccounts={setAccounts} />
+              ) : activeView === 'Investments' ? (
+                <InvestmentsPage />
+              ) : activeView === 'Settings' ? (
+                <Settings setIsLoggedIn={setIsLoggedIn} />
+              ) : activeView === 'Crypto' ? (
+                <CryptoPage />
+              ) :
+  
+               (
+              
+                <div className="coming-soon">Coming soon...</div>
+              )}
+            </main>
+          </div>
         </div>
-      </div>
-    </TransactionProvider>
+      </TransactionProvider>
+    </AuthProvider>
   );
 }
 

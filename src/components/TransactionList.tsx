@@ -1,20 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, ArrowUpDown } from 'lucide-react';
 import TransactionRow from './TransactionRow';
 import { SortField, SortOrder } from '../types';
 import { useTransactions } from '../context/TransactionContext';
+import AddTransaction from './AddTransaction';
 
 interface TransactionListProps {
   showAddTransaction: boolean;
   setShowAddTransaction: (show: boolean) => void;
 }
 
-export default function TransactionList({ showAddTransaction, setShowAddTransaction }: TransactionListProps) {
-  const { state } = useTransactions();
+export default function TransactionList({ 
+  showAddTransaction, 
+  setShowAddTransaction 
+}: TransactionListProps) {
+  const { state, refreshTransactions } = useTransactions();
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense' | 'transfer'>('all');
+
+  useEffect(() => {
+    refreshTransactions();
+  }, [refreshTransactions]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -25,10 +33,19 @@ export default function TransactionList({ showAddTransaction, setShowAddTransact
     }
   };
 
+  if (state.loading) {
+    return <div className="flex items-center justify-center h-64">Loading...</div>;
+  }
+
+  if (state.error) {
+    return <div className="text-red-500">{state.error}</div>;
+  }
+
   const filteredTransactions = state.transactions
     .filter(transaction => {
-      const matchesSearch = transaction.description.toLowerCase().includes(search.toLowerCase()) ||
-                            transaction.category.toLowerCase().includes(search.toLowerCase());
+      const matchesSearch = 
+        transaction.description.toLowerCase().includes(search.toLowerCase()) ||
+        transaction.category.toLowerCase().includes(search.toLowerCase());
       const matchesType = filterType === 'all' || transaction.type === filterType;
       return matchesSearch && matchesType;
     })
@@ -45,6 +62,10 @@ export default function TransactionList({ showAddTransaction, setShowAddTransact
 
   return (
     <div className="space-y-6">
+      {showAddTransaction && (
+        <AddTransaction onClose={() => setShowAddTransaction(false)} />
+      )}
+      
       <header className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 dark:text-chattext">Transactions</h1>
@@ -72,12 +93,13 @@ export default function TransactionList({ showAddTransaction, setShowAddTransact
           </div>
           <select
             value={filterType}
-            onChange={(e) => setFilterType(e.target.value as 'all' | 'income' | 'expense')}
+            onChange={(e) => setFilterType(e.target.value as typeof filterType)}
             className="px-4 py-2 border border-slate-200 dark:border-chatbg rounded-lg bg-white dark:bg-chatbg-dark dark:text-chattext"
           >
             <option value="all">All Transactions</option>
             <option value="income">Income Only</option>
             <option value="expense">Expenses Only</option>
+            <option value="transfer">Transfers Only</option>
           </select>
         </div>
 
@@ -112,11 +134,17 @@ export default function TransactionList({ showAddTransaction, setShowAddTransact
               <ArrowUpDown className="w-4 h-4" />
             </button>
           </div>
-          <div className="divide-y divide-slate-200 dark:divide-slate-800">
-            {filteredTransactions.map(transaction => (
-              <TransactionRow key={transaction.id} transaction={transaction} />
-            ))}
-          </div>
+          {filteredTransactions.length === 0 ? (
+            <div className="p-8 text-center text-slate-600 dark:text-chattext-muted">
+              No transactions found
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-200 dark:divide-slate-800">
+              {filteredTransactions.map(transaction => (
+                <TransactionRow key={transaction.id} transaction={transaction} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
