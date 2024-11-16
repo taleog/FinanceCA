@@ -22,6 +22,7 @@ interface SidebarProps {
 
 const menuItems = [
   { icon: DollarSign, label: 'Overview', view: 'Overview' },
+  { icon: DollarSign, label: 'Budget Management', view: 'BudgetManagement' },
   { icon: Wallet, label: 'Accounts', view: 'Accounts' },
   { icon: PieChart, label: 'Investments', view: 'Investments' },
   { icon: TrendingUp, label: 'Crypto', view: 'Crypto' },
@@ -60,14 +61,13 @@ export default function Sidebar({
           <Menu className="w-6 h-6" />
         </button>
       </div>
-
       <nav className="mt-6 flex-1">
         {menuItems.map((item) => (
           <button
             key={item.label}
-            onClick={() => onViewChange(item.label)}
+            onClick={() => onViewChange(item.view)}
             className={`w-full flex items-center gap-3 px-6 py-3 transition-colors ${
-              activeView === item.label
+              activeView === item.view
                 ? 'bg-chataccent/10 dark:bg-chataccent/10 text-chataccent dark:text-chataccent'
                 : 'text-slate-600 dark:text-chattext-muted hover:bg-slate-50 dark:hover:bg-chatbg hover:text-chataccent dark:hover:text-chataccent'
             }`}
@@ -77,7 +77,6 @@ export default function Sidebar({
           </button>
         ))}
       </nav>
-
       <div className="p-6 border-t border-slate-200 dark:border-chatbg flex items-center justify-between">
         <button
           onClick={handleLogout}

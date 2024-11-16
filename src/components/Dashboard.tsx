@@ -7,6 +7,7 @@ import { auth } from '../firebaseConfig';
 import CryptoPrices from './CryptoPrices';
 import Account from '../types/Account';
 import AddTransaction from './AddTransaction';
+import BudgetManagement from './BudgetManagement';
 import { getUserByUID } from '../services/userService';
 
 interface DashboardProps {

@@ -11,7 +11,7 @@ import Account from './types/Account';
 import CryptoPage from './components/CryptoPage';
 import { TransactionProvider } from './context/TransactionContext';
 import InvestmentsPage from './components/InvestmentsPage';
-
+import BudgetManagement from './components/BudgetManagement';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -69,10 +69,9 @@ function App() {
                 <Settings setIsLoggedIn={setIsLoggedIn} />
               ) : activeView === 'Crypto' ? (
                 <CryptoPage />
-              ) :
-  
-               (
-              
+              ) : activeView === 'BudgetManagement' ? (
+                <BudgetManagement />
+              ) : (
                 <div className="coming-soon">Coming soon...</div>
               )}
             </main>
